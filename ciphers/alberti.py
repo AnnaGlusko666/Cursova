@@ -13,12 +13,12 @@ class AlbertiWindow(tk.Toplevel):
         self.configure(bg=PALETTE["bg2"])
         self.resizable(False, False)
         self._inner_key = None
+        self.inner_map = {}
 
         self.theory_path = theory_path
         self.mode = "form"
 
         self.index_mark = 'a'
-        self.inner_map = {}
         self.current_inner = []
         self.index_at = 'A'
 
@@ -27,7 +27,6 @@ class AlbertiWindow(tk.Toplevel):
         self.only_letters = tk.BooleanVar(value=False)
         self.autoplay = tk.BooleanVar(value=False)
         self._after_id = None
-        self._demo_index = 0
 
         self.card = tk.Frame(self, bg=PALETTE["card"])
         self.card.pack(padx=24, pady=24, fill="both")
@@ -60,14 +59,12 @@ class AlbertiWindow(tk.Toplevel):
             self.inner_map = {}
         if outer not in self.inner_map:
             inner = list(outer)
-            random.seed(12345)
             random.shuffle(inner)
             self.inner_map[outer] = inner
         self.current_inner = list(self.inner_map[outer])
         self._inner_key = outer
 
     def _rotate_to_index(self, outer_letter: str):
-
         outer = self._get_alpha()
         if not outer_letter or outer_letter.upper() not in outer:
             return
@@ -76,8 +73,15 @@ class AlbertiWindow(tk.Toplevel):
         n = len(self.current_inner)
         if n == 0:
             return
-        shift = outer.index(self.index_at) % n
-        self.current_inner = self.current_inner[-shift:] + self.current_inner[:-shift]
+
+        inner_up = [c.upper() for c in self.current_inner]
+        mark = (getattr(self, "index_mark", "a") or "a").upper()
+        p = inner_up.index(mark) if mark in inner_up else 0
+        q = outer.index(self.index_at)
+
+        r = (q - p) % n
+        if r:
+            self.current_inner = self.current_inner[-r:] + self.current_inner[:-r]
 
         if hasattr(self, "index_choice") and self.index_choice.winfo_exists():
             try:
@@ -86,10 +90,11 @@ class AlbertiWindow(tk.Toplevel):
                 pass
 
     def _filter_text(self, txt):
-        if not self.only_letters.get(): return txt
-        alpha=self._get_alpha()
-        allowed=set(alpha)|set(ch.lower() for ch in alpha)
-        return "".join(c for c in txt if c in allowed)
+        if not self.only_letters.get():
+            return txt
+        alpha = self._get_alpha()
+        allowed = set(alpha) | {c.lower() for c in alpha}
+        return "".join(c if c in allowed else " " for c in txt)
 
     def _alberti_encrypt(self, text,k):
         a=self._get_alpha()
@@ -145,8 +150,10 @@ class AlbertiWindow(tk.Toplevel):
         t.pack(fill="both",expand=True);s.config(command=t.yview)
         content="Теорія недоступна"
         if self.theory_path:
-            try: content=open(self.theory_path,encoding="utf-8").read()
-            except Exception as e: content=f"Помилка: {e}"
+            try:
+                content = open(self.theory_path, encoding="utf-8").read()
+            except Exception as e:
+                content = f"Помилка: {e}"
         t.insert("1.0",content);t.config(state="disabled")
         ttk.Button(self.footer,text="Повернутися",command=self._show_form).pack(side="left")
         ttk.Button(self.footer,text="Закрити",command=self.destroy).pack(side="right")
@@ -315,4 +322,5 @@ class AlbertiWindow(tk.Toplevel):
         self.out.insert("1.0", "".join(res))
 
     def clear(self):
-        self.inp.delete("1.0","end");self.out.delete("1.0","end")
+        self.inp.delete("1.0","end")
+        self.out.delete("1.0","end")
